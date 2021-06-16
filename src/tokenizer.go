@@ -4,6 +4,7 @@ import (
     "fmt"
     "io/ioutil"
     "errors"
+    "regexp"
 )
 
 type state uint
@@ -40,8 +41,12 @@ func peek(pattern string, corpse string, pos int) bool {
     return corpse[pos:pos+len(pattern)] == pattern
 }
 
+func match(pattern string, corpse string, pos int)  []string {
+    re := regexp.MustCompile(pattern)
+    return re.FindStringSubmatch(corpse[pos:])
+}
+
 func tokenize(code string) ([]string, error) {
-    state := Initial
     pos := 0
     col := 0
     row := 0
@@ -51,26 +56,26 @@ func tokenize(code string) ([]string, error) {
             col=0
             row++
         }
-
-        if state == Initial {
-            if peek("package", code, pos) {
-                pos += len("package")
-                tokens = append(tokens, "package")
-                state = Space
-            } else if peek("//", code, pos) {
-                pos += len("//")
-                state = CommentSingleLine
-            } else if peek("/*", code, pos) {
-                pos += len("/*")
-                state = CommentMultiLine
-            } else {
-                return nil, errors.New(fmt.Sprintf("%d:%d Expected 'package' or comment.",row, col))
+        fmt.Println("reminder:", string(code[pos:]))
+        if m := match(`^(package)\s+([_a-zA-Z][_a-zA-Z0-9]*)\s*`, code, pos); len(m) > 0 {
+            // Matches package statement
+            pos += len(m[0])
+            tokens = append(tokens, m[1:]...)
+        } else if m := match(`^\/\/[^\n]*\n\s*`, code, pos); len(m) > 0 {
+            // Matches single line comments
+            pos += len(m[0])
+        } else if m := match(`^\/\*[^\*\/]*(\*\/)?\s*`, code, pos) ; len(m) > 0 {
+            // Matches multi-line comments and detects if not closed.
+            if len(m[1]) == 0 {
+                return nil, errors.New(fmt.Sprintf("%d:%d Multi-line comment never closes.",row, col))
             }
+            pos += len(m[0])
+        } else {
+            return nil, errors.New(fmt.Sprintf("%d:%d Expected 'package' or comment.",row, col))
         }
-
-        pos += 1
-        col += 1
+        col += pos
     }
+
     return tokens, nil
 }
 
