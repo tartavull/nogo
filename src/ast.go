@@ -100,8 +100,106 @@ func parseTypeSpec(tokens []Token) (NodeTypeSpec, []Token, error) {
     return NodeTypeSpec{}, tokens, nil
 }
 
+func parseArguments(tokens []Token) ([]string, []string, []Token, error) {
+    if (tokens[0].id != LPAREN) {
+        return nil, nil, tokens, errors.New("Expected (")
+    }
+    if (tokens[1].id != RPAREN) {
+        return nil, nil, tokens, errors.New("Expected )")
+    }
+    return []string{}, []string{}, tokens[2:], nil
+}
+
+func parseSignature(tokens []Token) ([]string, []Token, error) {
+    return []string{}, tokens, nil
+}
+
+func parseStmt(tokens []Token) {
+    switch tokens[0].id {
+    case CONST, TYPE, VAR:
+        panic("not implemented")
+    case
+		// tokens that may start an expression
+		IDENT, INT, FLOAT, IMAG, CHAR, STRING, FUNC, LPAREN, // operands
+		LBRACK, STRUCT, MAP, CHAN, INTERFACE, // composite types
+		ADD, SUB, MUL, AND, XOR, ARROW, NOT: // unary operators
+		//s, _ = p.parseSimpleStmt(labelOk)
+		// because of the required look-ahead, labeled statements are
+		// parsed by parseSimpleStmt - don't expect a semicolon after
+		// them
+        panic("not implemented")
+	case GO:
+		//s = p.parseGoStmt()
+        panic("not implemented")
+	case DEFER:
+		//s = p.parseDeferStmt()
+        panic("not implemented")
+	case RETURN:
+		//s = p.parseReturnStmt()
+        panic("not implemented")
+	case BREAK, CONTINUE, GOTO, FALLTHROUGH:
+		//s = p.parseBranchStmt(p.tok)
+	case LBRACE:
+        panic("not implemented")
+		//s = p.parseBlockStmt()
+		//p.expectSemi()
+	case IF:
+        panic("not implemented")
+		//s = p.parseIfStmt()
+	case SWITCH:
+        panic("not implemented")
+		//s = p.parseSwitchStmt()
+	case SELECT:
+        panic("not implemented")
+		//s = p.parseSelectStmt()
+	case FOR:
+        panic("not implemented")
+		//s = p.parseForStmt()
+	case SEMICOLON:
+        panic("not implemented")
+		// Is it ever possible to have an implicit semicolon
+		// producing an empty statement in a valid program?
+		// (handle correctly anyway)
+		//s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: p.lit == "\n"}
+		//p.next()
+	case RBRACE:
+        panic("not implemented")
+		// a semicolon may be omitted before a closing "}"
+		//s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: true}
+    }
+}
+
+func parseBody(tokens []Token) ([]Node, []Token, error) {
+    if (tokens[0].id != LBRACE) {
+        return nil, tokens, errors.New("Expected {")
+    }
+    parseStmt(tokens[1:])
+    return []Node{}, tokens, nil
+
+}
+
 func parseFuncDecl(tokens []Token) (NodeFunc, []Token, error) {
-    return NodeFunc{name: tokens[0].name}, tokens, nil
+    var err error
+    decl := NodeFunc{}
+    if (tokens[0].id != IDENT) {
+        return NodeFunc{}, tokens, errors.New("Expected function identifier")
+    }
+    decl.name = tokens[0].name
+    decl.arg_name, decl.arg_type, tokens, err = parseArguments(tokens[1:])
+    if (err != nil) {
+        return NodeFunc{}, tokens, err
+    }
+
+    decl.ret_type, tokens, err = parseSignature(tokens)
+    if (err != nil) {
+        return NodeFunc{}, tokens, err
+    }
+    decl.body, tokens, err = parseBody(tokens)
+    if (err != nil) {
+        return NodeFunc{}, tokens, err
+    }
+
+    return decl, tokens, nil
 }
 
 func parseDeclaration(tokens []Token) (Node, []Token, error) {
